@@ -1077,7 +1077,8 @@ interface IoLocation {
 /* ------------------------------------------------------------------ */
 
 export function parseProgram(code: string, options: ParseOptions = {}): ParseResult {
-  const parser = new Parser(code, options);
+  /* 兼容 Windows 记事本写入的 BOM */
+  const parser = new Parser(code.replace(/^\uFEFF/, ''), options);
   const rules = parser.parseProgram();
   const diagnostics = parser.getDiagnostics().slice();
 

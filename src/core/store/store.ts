@@ -1040,7 +1040,8 @@ export const useStore = create<AppStore>()((set, get) => {
     },
 
     importProjectText(text) {
-      const trimmed = text.trim();
+      /* 去掉 Windows 记事本可能写入的 BOM，否则 JSON / 脚本首行会解析失败 */
+      const trimmed = text.replace(/^\uFEFF/, '').trim();
       if (!trimmed) {
         get().pushToast('error', '文件内容是空的');
         return false;

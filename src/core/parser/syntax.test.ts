@@ -64,4 +64,14 @@ describe('official SFM syntax samples', () => {
     expect(result.diagnostics.filter((entry) => entry.severity === 'error')).toHaveLength(0);
     expect(result.rules).toHaveLength(1);
   });
+
+  it('ignores a UTF-8 BOM written by Notepad', () => {
+    const result = parseProgram('\uFEFFname "BOM 脚本"\nevery 10 seconds do\n  input from a\nend', {
+      knownTags: KNOWN,
+      locale: 'zh',
+    });
+    expect(result.diagnostics.filter((entry) => entry.severity === 'error')).toHaveLength(0);
+    expect(result.rules).toHaveLength(1);
+    expect(result.programName).toBe('BOM 脚本');
+  });
 });
