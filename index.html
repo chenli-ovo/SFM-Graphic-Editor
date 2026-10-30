@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23101318'/%3E%3Cpath d='M8 22V10h4l4 7 4-7h4v12h-3.2v-6.9L16.9 22h-1.8l-3.9-6.9V22H8z' fill='%2334d399'/%3E%3C/svg%3E"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#09090b" />
+    <meta
+      name="description"
+      content="SFM Studio - 可视化 Minecraft Super Factory Manager 脚本编辑器：规则卡片、实时代码、拓扑图、模拟运行与单文件离线分享。"
+    />
+    <title>SFM Studio · 可视化工厂脚本编辑器</title>
+    <script>
+      // 首屏主题引导，避免刷新闪烁（与 IndexedDB 持久化并行）
+      (function () {
+        try {
+          var raw = localStorage.getItem('sfm-studio:theme');
+          if (!raw) return;
+          var t = JSON.parse(raw);
+          var root = document.documentElement;
+          if (t && t.mode) root.setAttribute('data-theme', t.mode);
+          var palette = {
+            emerald: '#34d399', cyan: '#22d3ee', violet: '#a78bfa', amber: '#fbbf24', rose: '#fb7185',
+            blue: '#60a5fa', lime: '#a3e635', fuchsia: '#e879f9', orange: '#fb923c', teal: '#2dd4bf'
+          };
+          var custom = t && t.customAccent && /^#[0-9a-f]{6}$/i.test(t.customAccent) ? t.customAccent : '';
+          var hex = custom || (t && palette[t.accent]);
+          if (hex) {
+            var n = parseInt(hex.slice(1), 16);
+            var rgb = ((n >> 16) & 255) + ' ' + ((n >> 8) & 255) + ' ' + (n & 255);
+            root.style.setProperty('--accent-hex', hex);
+            root.style.setProperty('--c-accent', rgb);
+            root.style.setProperty('--c-accent-soft', rgb);
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

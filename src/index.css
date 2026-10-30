@@ -1,0 +1,272 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============ 主题变量（Tailwind 颜色全部映射到这里） ============ */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --c-app: 9 11 14;
+  --c-surface: 15 18 23;
+  --c-raised: 20 24 31;
+  --c-overlay: 24 29 38;
+  --c-line: 33 40 51;
+  --c-ink: 226 232 240;
+  --c-muted: 148 163 184;
+  --c-faint: 100 116 139;
+  --c-accent: 52 211 153;
+  --c-accent-soft: 16 185 129;
+  --c-danger: 248 113 113;
+  --c-warn: 251 191 36;
+  --c-ok: 52 211 153;
+  --c-info: 96 165 250;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --c-app: 244 246 249;
+  --c-surface: 255 255 255;
+  --c-raised: 240 243 247;
+  --c-overlay: 255 255 255;
+  --c-line: 221 227 234;
+  --c-ink: 26 36 51;
+  --c-muted: 92 105 124;
+  --c-faint: 148 163 184;
+  --c-accent: 5 150 105;
+  --c-accent-soft: 16 185 129;
+  --c-danger: 225 29 72;
+  --c-warn: 202 138 4;
+  --c-ok: 5 150 105;
+  --c-info: 37 99 235;
+}
+
+[data-theme='cyber'] {
+  color-scheme: dark;
+  --c-app: 5 2 12;
+  --c-surface: 10 4 22;
+  --c-raised: 18 6 36;
+  --c-overlay: 24 8 48;
+  --c-line: 46 16 82;
+  --c-ink: 233 213 255;
+  --c-muted: 167 139 250;
+  --c-faint: 124 58 237;
+  --c-accent: 232 121 249;
+  --c-accent-soft: 217 70 239;
+  --c-danger: 251 113 133;
+  --c-warn: 253 224 71;
+  --c-ok: 34 211 238;
+  --c-info: 56 189 248;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: rgb(var(--c-app));
+  color: rgb(var(--c-ink));
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+::selection {
+  background: rgb(var(--c-accent) / 0.28);
+}
+
+/* ============ 细滚动条 ============ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--c-line)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--c-line));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--c-muted) / 0.6);
+  background-clip: content-box;
+}
+
+/* ============ 极客网格背景 ============ */
+.bg-grid {
+  background-image:
+    linear-gradient(rgb(var(--c-line) / 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--c-line) / 0.28) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.bg-dots {
+  background-image: radial-gradient(rgb(var(--c-line) / 0.55) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+/* ============ 全局 Tooltip（data-tip 属性，纯 CSS） ============ */
+.tip {
+  position: relative;
+}
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  background: rgb(var(--c-overlay));
+  color: rgb(var(--c-ink));
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 90;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+.tip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.tip-right::after {
+  left: auto;
+  right: 0;
+  transform: translateY(4px);
+}
+.tip-right:hover::after {
+  transform: translateY(0);
+}
+.tip-bottom::after {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+/* ============ CodeMirror 断点与装饰 ============ */
+.cm-breakpoint-gutter {
+  width: 18px;
+  cursor: pointer;
+}
+.cm-breakpoint-gutter .cm-gutterElement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.cm-breakpoint-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: rgb(var(--c-danger));
+  box-shadow: 0 0 0 3px rgb(var(--c-danger) / 0.16), 0 0 10px rgb(var(--c-danger) / 0.5);
+}
+.cm-breakpoint-dot.is-empty {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* 诊断波浪线（linter 默认在 .cm-lintRange-error 上，增强对比） */
+.cm-lintRange-error {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='M0 2 L1.5 0.6 L3 2 L4.5 0.6 L6 2' fill='none' stroke='%23f87171' stroke-width='1'/%3E%3C/svg%3E") !important;
+  background-position: left bottom !important;
+  background-repeat: repeat-x !important;
+  background-size: 6px 3px !important;
+  padding-bottom: 2px;
+}
+.cm-lintRange-warning {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='M0 2 L1.5 0.6 L3 2 L4.5 0.6 L6 2' fill='none' stroke='%23fbbf24' stroke-width='1'/%3E%3C/svg%3E") !important;
+  background-position: left bottom !important;
+  background-repeat: repeat-x !important;
+  background-size: 6px 3px !important;
+  padding-bottom: 2px;
+}
+
+/* 模拟执行的行高亮 */
+.cm-simActiveLine {
+  background: rgb(var(--c-accent) / 0.16) !important;
+  box-shadow: inset 3px 0 0 rgb(var(--c-accent));
+}
+
+/* ============ 通用小组件 ============ */
+.card-shadow {
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.18);
+}
+.light .card-shadow,
+[data-theme='light'] .card-shadow {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px rgb(15 23 42 / 0.06);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 拖拽中的占位 */
+.dragging-card {
+  opacity: 0.45;
+  outline: 1px dashed rgb(var(--c-accent));
+}
+
+/* 输入框拖动悬停高亮 */
+.drop-target {
+  outline: 2px dashed rgb(var(--c-accent)) !important;
+  outline-offset: 2px;
+  background: rgb(var(--c-accent) / 0.08) !important;
+}
+
+/* 拖拽防御：禁止浏览器原生拖拽图片/链接、拖拽时误选文本 */
+[draggable='true'] {
+  -webkit-user-drag: element;
+  user-select: none;
+  -webkit-user-select: none;
+}
+img,
+a,
+.cm-editor,
+.cm-editor * {
+  -webkit-user-drag: none;
+}
+svg text,
+svg circle {
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* 触控板/触屏拖拽时不触发页面滚动 */
+.drag-surface {
+  touch-action: none;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--c-raised)) 0%,
+    rgb(var(--c-overlay)) 50%,
+    rgb(var(--c-raised)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
