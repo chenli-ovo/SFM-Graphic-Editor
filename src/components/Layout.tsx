@@ -48,6 +48,20 @@ export function Layout({
 
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-app text-ink">
+      {/* 表单里的标签 / 物品输入框通过 list="sfm-tags"/"sfm-items" 使用原生补全 */}
+      <datalist id="sfm-tags">
+        {project.tags.map((tag) => (
+          <option key={tag.id} value={tag.name} />
+        ))}
+      </datalist>
+      <datalist id="sfm-items">
+        {project.items.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.name}
+          </option>
+        ))}
+      </datalist>
+
       <TopBar onOpenDialog={onOpenDialog} onOpenPalette={onOpenPalette} onOpenPanel={onPanelChange} />
 
       <div className="relative flex min-h-0 flex-1">

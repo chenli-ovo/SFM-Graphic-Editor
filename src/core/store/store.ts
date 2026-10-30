@@ -28,6 +28,8 @@ import {
   updateRuleInTree,
 } from '../rules/tree';
 import type { BodyKey } from '../rules/tree';
+import { replaceInRules } from '../rules/search';
+import type { ReplaceMode } from '../rules/search';
 import {
   createBuiltinTemplates,
   createDefaultProject,
@@ -35,6 +37,7 @@ import {
   DEFAULT_THEME_STATE,
 } from '../data/defaults';
 import { ACCENTS, applyTheme } from '../data/themes';
+import { registryIdSet } from '../data/registry';
 import { newId } from '../../lib/id';
 import { copyText, downloadText, safeFileName } from '../../lib/utils';
 import { buildGiveCommand } from '../../lib/give';
@@ -62,6 +65,13 @@ export interface Toast {
 interface HistoryEntry {
   rules: Rule[];
   name: string;
+  /** 批量重命名标签 / 物品时一并记录，保证撤销能还原 */
+  tags?: Tag[];
+  items?: Item[];
+}
+
+function historyOf(project: Project): HistoryEntry {
+  return { rules: project.rules, name: project.name, tags: project.tags, items: project.items };
 }
 
 const MAX_HISTORY = 100;
@@ -73,6 +83,12 @@ function contentSignature(rules: Rule[]): string {
   return JSON.stringify(rules, (key, value) =>
     key === 'id' || key === 'collapsed' || key === 'note' ? undefined : value,
   );
+}
+
+function knownItemIds(project: Project): Set<string> {
+  const ids = new Set(registryIdSet());
+  project.items.forEach((item) => ids.add(item.id));
+  return ids;
 }
 
 function computeDiagnostics(
@@ -87,6 +103,7 @@ function computeDiagnostics(
 } {
   const result = parseProgram(code, {
     knownTags: project.tags.map((tag) => tag.name),
+    knownItems: knownItemIds(project),
     previousRules: project.rules,
     locale,
   });
@@ -149,6 +166,8 @@ export interface AppStore {
   forceSyncFromCode: () => boolean;
   recomputeDiagnostics: () => void;
   applyTagFixes: () => number;
+  /** 批量替换标签名 / 物品 ID；返回替换处数 */
+  replaceAll: (mode: ReplaceMode, from: string, to: string) => number;
 
   undo: () => void;
   redo: () => void;
@@ -237,7 +256,7 @@ export const useStore = create<AppStore>()((set, get) => {
       state.settings.locale,
     );
     const history = options.history === false ? null : {
-      past: [...state.past, { rules: project.rules, name: project.name }].slice(-MAX_HISTORY),
+      past: [...state.past, historyOf(project)].slice(-MAX_HISTORY),
       future: [] as HistoryEntry[],
     };
     set({
@@ -588,7 +607,7 @@ export const useStore = create<AppStore>()((set, get) => {
         codeSource: 'code',
         ...(changed
           ? {
-              past: [...state.past, { rules: project.rules, name: project.name }].slice(-MAX_HISTORY),
+              past: [...state.past, historyOf(project)].slice(-MAX_HISTORY),
               future: [],
             }
           : {}),
@@ -623,7 +642,7 @@ export const useStore = create<AppStore>()((set, get) => {
         lineToRule: parsed.lineToRule,
         ruleLines: parsed.ruleLines,
         codeSource: 'code',
-        past: [...state.past, { rules: project.rules, name: project.name }].slice(-MAX_HISTORY),
+        past: [...state.past, historyOf(project)].slice(-MAX_HISTORY),
         future: [],
       });
       get().pushToast('success', '代码已同步到表单');
@@ -672,12 +691,65 @@ export const useStore = create<AppStore>()((set, get) => {
       return created.length;
     },
 
+    replaceAll(mode, from, to) {
+      const state = get();
+      const project = active();
+      if (!project) return 0;
+      const source = from.trim();
+      const target = to.trim();
+      if (!source || source === target) return 0;
+      if (mode === 'tag' && project.tags.some((tag) => tag.name === target)) {
+        get().pushToast('warning', `标签「${target}」已存在，请换一个名字`);
+        return 0;
+      }
+      if (mode === 'item' && !/^[a-z0-9_]+:{1,2}[a-z0-9_:]*$/.test(target)) {
+        get().pushToast('warning', '物品 ID 需形如 minecraft:iron_ingot');
+        return 0;
+      }
+      const { rules, count } = replaceInRules(project.rules, mode, source, target);
+      if (count === 0) return 0;
+      const tags =
+        mode === 'tag'
+          ? project.tags.map((tag) => (tag.name === source ? { ...tag, name: target } : tag))
+          : project.tags;
+      const items =
+        mode === 'item'
+          ? project.items.map((item) => (item.id === source ? { ...item, id: target } : item))
+          : project.items;
+      const nextProject: Project = { ...project, rules, tags, items, updatedAt: Date.now() };
+      const code = serializeProgram(nextProject.name, nextProject.rules);
+      const { diagnostics, parseFailed, lineToRule, ruleLines } = computeDiagnostics(
+        code,
+        nextProject,
+        state.settings.locale,
+      );
+      set({
+        projects: state.projects.map((p) => (p.id === nextProject.id ? nextProject : p)),
+        code,
+        diagnostics,
+        parseFailed,
+        lineToRule,
+        ruleLines,
+        codeSource: 'form',
+        past: [...state.past, historyOf(project)].slice(-MAX_HISTORY),
+        future: [],
+      });
+      return count;
+    },
+
     undo() {
       const state = get();
       const project = active();
       if (!project || !state.past.length) return;
       const entry = state.past[state.past.length - 1];
-      const nextProject: Project = { ...project, name: entry.name, rules: entry.rules, updatedAt: Date.now() };
+      const nextProject: Project = {
+        ...project,
+        name: entry.name,
+        rules: entry.rules,
+        ...(entry.tags ? { tags: entry.tags } : {}),
+        ...(entry.items ? { items: entry.items } : {}),
+        updatedAt: Date.now(),
+      };
       const code = serializeProgram(nextProject.name, nextProject.rules);
       const { diagnostics, parseFailed, lineToRule, ruleLines } = computeDiagnostics(
         code,
@@ -686,7 +758,7 @@ export const useStore = create<AppStore>()((set, get) => {
       );
       set({
         past: state.past.slice(0, -1),
-        future: [{ rules: project.rules, name: project.name }, ...state.future].slice(0, MAX_HISTORY),
+        future: [historyOf(project), ...state.future].slice(0, MAX_HISTORY),
         projects: state.projects.map((p) => (p.id === nextProject.id ? nextProject : p)),
         code,
         diagnostics,
@@ -702,7 +774,14 @@ export const useStore = create<AppStore>()((set, get) => {
       const project = active();
       if (!project || !state.future.length) return;
       const entry = state.future[0];
-      const nextProject: Project = { ...project, name: entry.name, rules: entry.rules, updatedAt: Date.now() };
+      const nextProject: Project = {
+        ...project,
+        name: entry.name,
+        rules: entry.rules,
+        ...(entry.tags ? { tags: entry.tags } : {}),
+        ...(entry.items ? { items: entry.items } : {}),
+        updatedAt: Date.now(),
+      };
       const code = serializeProgram(nextProject.name, nextProject.rules);
       const { diagnostics, parseFailed, lineToRule, ruleLines } = computeDiagnostics(
         code,
@@ -711,7 +790,7 @@ export const useStore = create<AppStore>()((set, get) => {
       );
       set({
         future: state.future.slice(1),
-        past: [...state.past, { rules: project.rules, name: project.name }].slice(-MAX_HISTORY),
+        past: [...state.past, historyOf(project)].slice(-MAX_HISTORY),
         projects: state.projects.map((p) => (p.id === nextProject.id ? nextProject : p)),
         code,
         diagnostics,

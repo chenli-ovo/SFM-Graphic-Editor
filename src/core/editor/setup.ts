@@ -20,6 +20,7 @@ import {
 } from '@codemirror/view';
 import type { Locale, ThemeMode } from '../types';
 import { breakpointGutter } from './breakpoints';
+import type { CompletionItem } from './completion';
 import { createSfmCompletion } from './completion';
 import { sfmFoldService } from './fold';
 import { sfmLanguage } from './language';
@@ -30,7 +31,8 @@ export interface EditorSetupOptions {
   mode: ThemeMode;
   accent: string;
   tags: () => string[];
-  items: () => string[];
+  items: () => CompletionItem[];
+  knownItems: () => Iterable<string>;
   locale: () => Locale;
   defineTag: (name: string) => void;
   onBreakpoints: (lines: number[]) => void;
@@ -83,6 +85,7 @@ export function createEditorExtensions(options: EditorSetupOptions): Extension[]
     sfmFoldService,
     createSfmLinter({
       knownTags: options.tags,
+      knownItems: options.knownItems,
       locale: options.locale,
       defineTag: options.defineTag,
     }),

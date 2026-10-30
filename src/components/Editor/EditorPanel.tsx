@@ -49,8 +49,6 @@ export function EditorPanel({
   const settings = useStore((state) => state.settings);
   const theme = useStore((state) => state.theme);
   const revealSeq = useStore((state) => state.revealSeq);
-  const revealRuleId = useStore((state) => state.revealRuleId);
-  const ruleLines = useStore((state) => state.ruleLines);
   const { applyCode, forceSyncFromCode, applyTagFixes, exportSfm, pushToast, setBreakpoints } = useStore.getState();
 
   const editorRef = useRef<CodeEditorHandle>(null);
@@ -81,13 +79,20 @@ export function EditorPanel({
     editorRef.current?.jumpToLine(line);
   };
 
-  // 左侧点击卡片 → 右侧滚动并选中该规则对应的代码块
+  // 左侧点击卡片 → 右侧滚动并选中该规则对应的代码块。
+  // 只在 revealSeq 变化时执行：表单每次输入都会重建 ruleLines，若把它放进依赖，
+  // 每次键入都会重新聚焦源码编辑器，抢走标签输入框的焦点。
+  const handledReveal = useRef(0);
   useEffect(() => {
-    if (!revealRuleId) return;
-    const range = ruleLines[revealRuleId];
+    if (revealSeq === 0 || revealSeq === handledReveal.current) return;
+    handledReveal.current = revealSeq;
+    const state = useStore.getState();
+    const id = state.revealRuleId;
+    if (!id) return;
+    const range = state.ruleLines[id];
     if (!range) return;
     editorRef.current?.revealLine(range.start, range.end);
-  }, [revealSeq, revealRuleId, ruleLines]);
+  }, [revealSeq]);
 
   const syncBadge = parseFailed ? (
     <span className="flex items-center gap-1 text-danger">

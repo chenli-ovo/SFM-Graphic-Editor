@@ -1,4 +1,5 @@
 import type { Completion, CompletionContext, CompletionResult, CompletionSource } from '@codemirror/autocomplete';
+import { registryItems, SPECIAL_RESOURCES } from '../data/registry';
 
 const KEYWORD_SNIPPETS: Completion[] = [
   { label: 'every', type: 'keyword', detail: '定时块', apply: 'every 20 ticks do\n  \nend' },
@@ -17,15 +18,52 @@ function contextBefore(context: CompletionContext): string {
   return line.text.slice(0, context.pos - line.from);
 }
 
+export interface CompletionItem {
+  id: string;
+  name?: string;
+}
+
 export interface CompletionData {
   tags: () => string[];
-  items: () => string[];
+  items: () => CompletionItem[];
+}
+
+/** 注册表补全项只构建一次（1254 条），避免每次按键重复分配 */
+let registryOptionsCache: Completion[] | null = null;
+
+function registryOptions(): Completion[] {
+  if (!registryOptionsCache) {
+    registryOptionsCache = registryItems().map((item) => ({
+      label: item.id,
+      type: 'constant' as const,
+      detail: `物品 · ${item.zh}`,
+      boost: -1,
+    }));
+  }
+  return registryOptionsCache;
+}
+
+function resourceOptions(data: CompletionData): Completion[] {
+  const projectOptions = data.items().map((item) => ({
+    label: item.id,
+    type: 'constant' as const,
+    detail: `物品 · ${item.name || ''}`.trim(),
+    boost: 2,
+  }));
+  const seen = new Set(projectOptions.map((option) => option.label));
+  const extras: Completion[] = SPECIAL_RESOURCES.map((id) => ({
+    label: id,
+    type: 'constant' as const,
+    detail: '特殊资源',
+    boost: 1,
+  }));
+  return [...projectOptions, ...extras, ...registryOptions().filter((option) => !seen.has(option.label))];
 }
 
 /**
  * SFM 自动补全（对齐官方语法）：
  * - from/to/has 之后 → 标签名
- * - input/output/retain/except/with/without 之后 → 物品 ID
+ * - input/output/retain/except/with/without 之后 → 物品 ID（项目物品 + 全量注册表）
  * - side 附近 → 朝向名
  * - 其他位置 → 关键字片段与标签
  */
@@ -47,7 +85,7 @@ export function createSfmCompletion(data: CompletionData): CompletionSource {
     if (/\b(?:input|output|retain|except|with|without)\s+[^,]*$/.test(prefix)) {
       return {
         from,
-        options: data.items().map((id) => ({ label: id, type: 'constant', detail: '物品' })),
+        options: resourceOptions(data),
         validFor: /^[\w:.*-]*$/,
       };
     }

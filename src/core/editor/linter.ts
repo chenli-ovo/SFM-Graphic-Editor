@@ -6,6 +6,8 @@ import { parseProgram } from '../parser';
 
 export interface LinterOptions {
   knownTags: () => string[];
+  /** 已知资源 ID（注册表 + 项目物品），用于未知物品提示 */
+  knownItems?: () => Iterable<string>;
   locale: () => Locale;
   defineTag?: (name: string) => void;
 }
@@ -21,7 +23,11 @@ export function createSfmLinter(options: LinterOptions): Extension {
     (view) => {
       const code = view.state.doc.toString();
       if (!code.trim()) return [];
-      const result = parseProgram(code, { knownTags: options.knownTags(), locale: options.locale() });
+      const result = parseProgram(code, {
+        knownTags: options.knownTags(),
+        knownItems: options.knownItems?.(),
+        locale: options.locale(),
+      });
       return result.diagnostics.map((diagnostic): CMDiagnostic => {
         const from = Math.max(0, Math.min(diagnostic.from, code.length));
         const to = Math.max(from, Math.min(diagnostic.to || from + 1, code.length));

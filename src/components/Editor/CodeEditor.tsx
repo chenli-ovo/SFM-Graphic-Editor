@@ -6,6 +6,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { setBreakpointsEffect } from '../../core/editor/breakpoints';
 import { createEditorExtensions } from '../../core/editor/setup';
 import { createEditorTheme } from '../../core/editor/theme';
+import { registryIdSet } from '../../core/data/registry';
 import { getActiveProject, useStore } from '../../core/store/store';
 import type { ThemeMode } from '../../core/types';
 
@@ -102,7 +103,14 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function
         mode,
         accent,
         tags: () => getActiveProject(useStore.getState())?.tags.map((tag) => tag.name) ?? [],
-        items: () => getActiveProject(useStore.getState())?.items.map((item) => item.id) ?? [],
+        items: () =>
+          getActiveProject(useStore.getState())?.items.map((item) => ({ id: item.id, name: item.name })) ?? [],
+        knownItems: () => {
+          const project = getActiveProject(useStore.getState());
+          const ids = new Set(registryIdSet());
+          project?.items.forEach((item) => ids.add(item.id));
+          return ids;
+        },
         locale: () => useStore.getState().settings.locale,
         defineTag: (name) => useStore.getState().addTag(name),
         onBreakpoints: (lines) => propsRef.current.onBreakpoints?.(lines),

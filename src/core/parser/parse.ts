@@ -49,6 +49,7 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     badSide: '无效朝向：{side}',
     badCompare: '无效比较符',
     badNumber: '这里需要数字',
+    unknownItem: '未知物品 ID “{item}”，请检查拼写（可用的 Minecraft 物品见补全列表）',
   },
   en: {
     missingInterval: 'Interval is required (positive integer)',
@@ -71,6 +72,7 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     badSide: 'Invalid side: {side}',
     badCompare: 'Invalid comparison operator',
     badNumber: 'A number is required here',
+    unknownItem: 'Unknown item ID “{item}” — check the spelling (see the completion list)',
   },
 };
 
@@ -85,6 +87,8 @@ function m(locale: Locale, key: string, params: Record<string, string> = {}): st
 
 export interface ParseOptions {
   knownTags?: Iterable<string>;
+  /** 已知资源 ID（注册表 + 项目物品）；仅对 `minecraft:` 前缀做未知校验，避免误伤模组物品 */
+  knownItems?: Iterable<string>;
   previousRules?: Rule[];
   locale?: Locale;
 }
@@ -253,12 +257,14 @@ class Parser {
   private ruleLines: Record<string, { start: number; end: number }> = {};
   private tagRefs = new Set<string>();
   private knownTags: Set<string>;
+  private knownItems: Set<string>;
   private locale: Locale;
   programName: string | null = null;
 
   constructor(code: string, options: ParseOptions) {
     this.tokens = tokenize(code);
     this.knownTags = new Set(options.knownTags ?? []);
+    this.knownItems = new Set(options.knownItems ?? []);
     this.locale = options.locale ?? 'zh';
   }
 
@@ -366,6 +372,22 @@ class Parser {
           tagName: label,
         });
       }
+    }
+  }
+
+  /**
+   * 校验资源 ID：只检查 `minecraft:` 前缀的写法（模组 / 特殊资源不误报），
+   * 支持 `stone or dirt` 这种多资源写法。
+   */
+  private checkResource(raw: string, token: Token | undefined): void {
+    if (!token || this.knownItems.size === 0 || !raw) return;
+    const text = raw.trim();
+    if (text.startsWith('"') && text.endsWith('"')) return;
+    for (const part of text.split(/\s+or\s+/)) {
+      const value = part.trim();
+      if (!/^minecraft:[a-z0-9_]+$/.test(value)) continue;
+      if (this.knownItems.has(value)) continue;
+      this.diag('warning', m(this.locale, 'unknownItem', { item: value }), token);
     }
   }
 
@@ -710,7 +732,9 @@ class Parser {
           if (entry.type !== 'word' && entry.type !== 'string') break;
           const entryLower = entry.value.toLowerCase();
           if (isNumber(entry.value) || ['retain', 'each', 'except'].includes(entryLower)) break;
-          except.push(entry.type === 'string' ? `"${entry.value}"` : entry.value);
+          const text = entry.type === 'string' ? `"${entry.value}"` : entry.value;
+          except.push(text);
+          this.checkResource(text, entry);
           this.next();
         }
         continue;
@@ -778,6 +802,7 @@ class Parser {
         op.resource += ` or ${nextRes.type === 'string' ? `"${nextRes.value}"` : nextRes.value}`;
         this.next();
       }
+      this.checkResource(op.resource, res);
     }
 
     if (this.isWord('with') || this.isWord('without')) {
@@ -963,6 +988,7 @@ class Parser {
       if (!RESERVED.has(resLower) && !STATEMENT_START.has(resLower)) {
         resource = res.type === 'string' ? `"${res.value}"` : res.value;
         this.next();
+        this.checkResource(resource, res);
       }
     }
 
@@ -993,7 +1019,9 @@ class Parser {
         }
         if (entry.type !== 'word' && entry.type !== 'string') break;
         if (STATEMENT_START.has(entry.value.toLowerCase())) break;
-        except.push(entry.type === 'string' ? `"${entry.value}"` : entry.value);
+        const text = entry.type === 'string' ? `"${entry.value}"` : entry.value;
+        except.push(text);
+        this.checkResource(text, entry);
         this.next();
       }
     }

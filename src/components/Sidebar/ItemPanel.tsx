@@ -1,6 +1,7 @@
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { BookOpen, Plus, Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { CATEGORIES, shortItemId } from '../../core/data/items';
+import { registryItems, searchRegistry } from '../../core/data/registry';
 import { useStore, useActiveProject } from '../../core/store/store';
 import type { ItemCategory } from '../../core/types';
 import { setDragPayload } from '../../lib/dnd';
@@ -16,6 +17,7 @@ export function ItemPanel() {
 
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<ItemCategory | 'all'>('all');
+  const [registryMode, setRegistryMode] = useState(false);
   const [creating, setCreating] = useState(false);
   const [draftId, setDraftId] = useState('');
   const [draftName, setDraftName] = useState('');
@@ -29,6 +31,18 @@ export function ItemPanel() {
       return `${item.id} ${item.name}`.toLowerCase().includes(needle);
     });
   }, [items, query, category]);
+
+  const registryMatches = useMemo(() => {
+    if (!registryMode) return [];
+    const known = new Set(items.map((item) => item.id));
+    return searchRegistry(query, 80).filter((entry) => !known.has(entry.id));
+  }, [registryMode, query, items]);
+
+  const addFromRegistry = (id: string, name: string, cat: ItemCategory, icon: string) => {
+    const ok = addItem({ id, name, category: cat, icon });
+    if (!ok) return;
+    pushToast('success', t('item.registryAdded', { name }));
+  };
 
   const submit = () => {
     const id = draftId.trim();
@@ -65,6 +79,19 @@ export function ItemPanel() {
               className="h-7 w-full rounded-md border border-line bg-raised pl-6 pr-2 text-[11px] text-ink outline-none placeholder:text-faint focus:border-accent/50"
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setRegistryMode((value) => !value)}
+            className={cn(
+              'tip flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors',
+              registryMode
+                ? 'border-accent/50 bg-accent/15 text-accent'
+                : 'border-line bg-raised text-muted hover:border-accent/40 hover:text-accent',
+            )}
+            data-tip={t('item.registry')}
+          >
+            <BookOpen size={13} />
+          </button>
           <button
             type="button"
             onClick={() => setCreating((value) => !value)}
@@ -149,7 +176,42 @@ export function ItemPanel() {
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-        {filtered.length === 0 ? (
+        {registryMode ? (
+          query.trim() ? (
+            registryMatches.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[11px] text-faint">{t('item.empty')}</p>
+            ) : (
+              <>
+                <p className="px-2 pb-1 text-[9px] text-faint">
+                  {t('item.registryHint', { count: registryMatches.length })}
+                </p>
+                <ul className="space-y-0.5">
+                  {registryMatches.map((entry) => (
+                    <li key={entry.id}>
+                      <button
+                        type="button"
+                        onClick={() => addFromRegistry(entry.id, locale === 'zh' ? entry.zh : entry.en, entry.category, entry.icon)}
+                        className="flex w-full items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-left transition-colors hover:border-line hover:bg-raised/70"
+                        title={t('item.registryAdded', { name: entry.id })}
+                      >
+                        <span className="w-4 shrink-0 text-center text-[12px] leading-none">{entry.icon}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[11px] text-ink">{locale === 'zh' ? entry.zh : entry.en}</div>
+                          <div className="truncate font-mono text-[9px] text-faint">{entry.id}</div>
+                        </div>
+                        <Plus size={11} className="shrink-0 text-faint" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )
+          ) : (
+            <p className="px-2 py-6 text-center text-[10px] leading-relaxed text-faint">
+              {t('item.registryHint', { count: registryItems().length })}
+            </p>
+          )
+        ) : filtered.length === 0 ? (
           <p className="px-2 py-6 text-center text-[11px] text-faint">{t('item.empty')}</p>
         ) : (
           <ul className="space-y-0.5">
