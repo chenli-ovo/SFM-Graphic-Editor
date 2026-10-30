@@ -18,6 +18,7 @@ import { hasErrors, parseProgram, serializeProgram } from '../parser';
 import {
   appendToBody,
   cloneRuleDeep,
+  collectTags,
   createRule,
   findRule,
   insertAfterRule,
@@ -1039,19 +1040,51 @@ export const useStore = create<AppStore>()((set, get) => {
     },
 
     importProjectText(text) {
-      const parsed = parseProjectImport(text);
-      if (!parsed) {
-        get().pushToast('error', '无法识别的项目 JSON');
+      const trimmed = text.trim();
+      if (!trimmed) {
+        get().pushToast('error', '文件内容是空的');
         return false;
       }
-      const state = get();
-      if (parsed.projects.length) {
-        const projects = [...state.projects, ...parsed.projects];
-        set({ projects });
-        get().setActiveProject(parsed.projects[0].id);
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        const parsed = parseProjectImport(trimmed);
+        if (parsed) {
+          const state = get();
+          if (parsed.projects.length) {
+            const projects = [...state.projects, ...parsed.projects];
+            set({ projects });
+            get().setActiveProject(parsed.projects[0].id);
+          }
+          if (parsed.templates.length) set({ templates: [...state.templates, ...parsed.templates] });
+          get().pushToast('success', '项目导入成功');
+          return true;
+        }
+        get().pushToast('error', 'JSON 结构无法识别，缺少 name / rules 字段');
+        return false;
       }
-      if (parsed.templates.length) set({ templates: [...state.templates, ...parsed.templates] });
-      get().pushToast('success', '项目导入成功');
+
+      /* 不是 JSON：按官方 SFM 脚本导入 */
+      const state = get();
+      const knownTags = Array.from(new Set(state.projects.flatMap((project) => project.tags.map((tag) => tag.name))));
+      const parsed = parseProgram(trimmed, { knownTags, locale: state.settings.locale });
+      const errors = parsed.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
+      if (errors.length > 0) {
+        get().pushToast('error', `脚本解析失败：${errors[0].message}`);
+        return false;
+      }
+      if (parsed.rules.length === 0) {
+        get().pushToast('error', '脚本里没有可导入的规则');
+        return false;
+      }
+      const base = createDefaultProject(parsed.programName || '导入的脚本');
+      const existing = new Set(base.tags.map((tag) => tag.name));
+      for (const name of collectTags(parsed.rules)) {
+        if (!name || name === '?' || existing.has(name)) continue;
+        base.tags.push({ id: newId('tag'), name, color: '#38bdf8', note: '' });
+        existing.add(name);
+      }
+      const project: Project = { ...base, rules: parsed.rules };
+      replaceProjects([...state.projects, project], project.id);
+      get().pushToast('success', `已导入脚本「${project.name}」`);
       return true;
     },
 

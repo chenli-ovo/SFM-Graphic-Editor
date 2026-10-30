@@ -1,5 +1,5 @@
 import { Database, FileJson, HardDriveDownload, Languages, Palette, Settings2, Sparkles, Volume2, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { THEME_MODES, ACCENTS } from '../../core/data/themes';
 import { clearWorkspace } from '../../core/store/persistence';
 import { useStore } from '../../core/store/store';
@@ -14,24 +14,21 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
   const { updateSettings, updateAi, setLocale, setTheme, exportBackup, exportProjectJson, importBackup, importProjectText, pushToast } =
     useStore.getState();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [importKind, setImportKind] = useState<'backup' | 'project'>('backup');
+  const importKindRef = useRef<'backup' | 'project'>('backup');
 
   const pickFile = (kind: 'backup' | 'project') => {
-    setImportKind(kind);
-    window.setTimeout(() => fileRef.current?.click(), 0);
+    importKindRef.current = kind;
+    fileRef.current?.click();
   };
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     try {
       const text = await file.text();
-      const ok = importKind === 'backup' ? importBackup(text) : importProjectText(text);
-      if (ok) {
-        pushToast('success', t('toast.imported'));
-        onClose();
-      } else {
-        pushToast('error', t('toast.error'));
-      }
+      /* .sfm 脚本无论点哪个按钮都按脚本导入，避免“从备份恢复”选到脚本时报错 */
+      const isScript = file.name.toLowerCase().endsWith('.sfm');
+      const ok = importKindRef.current === 'backup' && !isScript ? importBackup(text) : importProjectText(text);
+      if (ok) onClose();
     } catch {
       pushToast('error', t('toast.error'));
     }

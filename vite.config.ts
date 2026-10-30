@@ -17,7 +17,7 @@ export default defineConfig({
     strictPort: false,
     watch: {
       // 忽略工具链临时目录，避免 Windows 上 EBUSY 导致 dev server 崩溃
-      ignored: ['**/.*.tmpdir/**', '**/*.tmp', '**/.edge-profile/**'],
+      ignored: ['**/.*.tmpdir/**', '**/*.tmpdir/**', '**/*.tmp', '**/.edge-profile/**'],
     },
   },
   build: {

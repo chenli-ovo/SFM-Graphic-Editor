@@ -310,9 +310,9 @@ const zh = {
   'settings.storageHint': '所有数据仅保存在浏览器本地',
   'settings.backup': '导出完整备份',
   'settings.restore': '从备份恢复',
-  'settings.importProject': '导入项目 JSON',
+  'settings.importProject': '导入项目 / 脚本',
   'settings.exportProject': '导出当前项目',
-  'settings.importHint': '支持 SFM Studio 备份包、项目 JSON 与模板 JSON',
+  'settings.importHint': '支持 .json 备份包、项目 JSON、模板 JSON，也支持 .sfm 脚本文件',
 
   'command.title': '命令面板',
   'command.placeholder': '输入命令或搜索操作…',
@@ -710,9 +710,9 @@ const en: Dict = {
   'settings.storageHint': 'Everything stays in your browser',
   'settings.backup': 'Export full backup',
   'settings.restore': 'Restore from backup',
-  'settings.importProject': 'Import project JSON',
+  'settings.importProject': 'Import project / script',
   'settings.exportProject': 'Export current project',
-  'settings.importHint': 'Accepts SFM Studio backups, project JSON and template JSON',
+  'settings.importHint': 'Accepts .json backups, project JSON, template JSON and .sfm scripts',
 
   'command.title': 'Command palette',
   'command.placeholder': 'Type a command or search actions…',
